@@ -1,0 +1,9 @@
+sentence-transformers
+torch
+pypdf
+scikit-learn
+numpy
+pandas
+rich
+pyyaml
+keybert
