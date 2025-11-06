@@ -1,6 +1,6 @@
-# NormSort: Offline PDF Topic Sorter (Embeddings + Clustering)
+# PDFSort: Offline PDF Topic Sorter (Embeddings + Clustering)
 
-NormSort sorts research PDFs into topic folders using **local** sentence embeddings (no internet, no Ollama).
+PDFSort sorts research PDFs into topic folders using **local** sentence embeddings (no internet, no Ollama).
 It can also cluster any low-confidence items and **auto-name subgroups** (KeyBERT/TF‑IDF).
 
 > Works on Windows, Tested on Windows with VS Code.
