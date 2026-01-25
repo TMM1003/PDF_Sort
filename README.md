@@ -1,68 +1,140 @@
-# PDF Sort Utility
+# PDFSort — Offline Semantic PDF Organization Tool
 
-A lightweight **Python utility for automatically organizing PDF files** based on filename patterns and configurable rules.  
-Designed to simplify document management workflows by programmatically sorting PDFs into structured directories.
+PDFSort is an **offline, machine-learning–based PDF organization tool** that uses
+semantic text embeddings and unsupervised clustering to automatically group and
+label documents by topic.
+
+Unlike rule-based filename sorters, PDFSort analyzes the *content* of PDF files
+using transformer-based embeddings, enabling semantic classification and discovery
+of previously unknown document categories.
+
+All processing is performed locally — **no external APIs or cloud services are used**.
 
 ---
 
 ## Project Overview
 
-This project provides a simple, extensible solution for organizing PDF files without relying on external document-management tools. It scans a target directory, analyzes PDF filenames, and relocates files into categorized subfolders based on predefined sorting logic.
+PDFSort is designed for organizing large collections of PDF documents such as
+academic papers, reports, and technical documentation.
 
-The primary focus of the project is **automation, correctness, and filesystem safety**, rather than user interface or third-party integrations.
+The system combines:
+- **Semantic embeddings** for content understanding
+- **Similarity-based assignment** for known topics
+- **Unsupervised clustering** for unknown or ambiguous documents
+- **Automated cluster naming** using NLP techniques
+
+The result is a transparent, reproducible document-sorting pipeline that balances
+automation with interpretability.
 
 ---
 
-## Core Features
+## Core Capabilities
 
-- Automated discovery of PDF files within a target directory
-- Rule-based sorting using filename patterns
-- Automatic creation of destination folders
-- Safe file movement with overwrite protection
-- Minimal dependencies (Python standard library only)
+- Transformer-based **semantic embeddings** of PDF content
+- Topic assignment using **cosine similarity with confidence thresholds**
+- **Unsupervised clustering** of low-confidence documents
+- Automatic, human-readable **cluster naming**
+- Fully **offline execution**
+- Detailed CSV and JSON reports for auditing and analysis
+- Safe, non-destructive file operations
 
 ---
 
 ## How It Works
 
-1. **Scan Input Directory**  
-   The script identifies all `.pdf` files in the configured source directory.
+### 1. Topic Seeding
+Topics and short seed descriptions are defined in a `seeds.yaml` file.
+Each seed is embedded and used as a semantic anchor for classification.
 
-2. **Classify Files**  
-   Each PDF is evaluated against a set of filename-based rules to determine its category.
+### 2. PDF Text Extraction
+The tool extracts text from the first *N* pages of each PDF (configurable)
+using `pypdf`. No OCR is performed.
 
-3. **Organize Output**  
-   Files are moved into category-specific subdirectories, which are created automatically if they do not already exist.
+### 3. Semantic Embedding
+Document text and topic seeds are embedded using a
+**Sentence-Transformer (MiniLM)** model.
+Embeddings are normalized to support cosine similarity.
 
-4. **Preserve File Integrity**  
-   The script avoids destructive operations and ensures files are not silently overwritten.
+### 4. Similarity-Based Assignment
+Each document is compared against all topic seeds:
+- Documents with similarity above a configurable threshold are assigned directly
+- Low-confidence documents are routed to an `_unsorted` pool
+
+### 5. Unsupervised Clustering
+If enough documents remain unassigned, the tool applies
+**agglomerative clustering (cosine distance)** to group them into latent topics.
+
+### 6. Automatic Cluster Naming
+Clusters are labeled using a multi-stage NLP pipeline:
+1. **KeyBERT** keyphrase extraction
+2. **TF-IDF** fallback on document titles
+3. Word-frequency fallback as a last resort
+
+### 7. Reporting
+The system generates:
+- `assignment_report.csv` — similarity scores and topic decisions
+- `cluster_suggestions.json` — raw clustering output
+- `_RUN_OK.json` — implicit success marker
 
 ---
 
 ## Example Use Cases
 
-This utility is well-suited for organizing collections such as:
+- Organizing academic research papers by topic
+- Sorting course materials or technical documentation
+- Cleaning large PDF download folders
+- Discovering latent themes in document collections
 
-- Academic papers
-- Course handouts
-- Reports and invoices
-- Download folders that accumulate PDFs over time
+---
 
-The sorting logic can be easily adapted to new naming conventions or folder structures.
+## Configuration
+
+Key parameters can be tuned to control behavior:
+
+- Embedding model selection
+- Assignment confidence threshold
+- Maximum pages extracted per PDF
+- Minimum document size warnings
+- Clustering granularity
+
+These allow trade-offs between speed, precision, and recall.
 
 ---
 
 ## System Requirements
 
-- Python 3.8 or newer
-- Compatible with Windows, macOS, and Linux
-- No external dependencies required
+- Python 3.8+
+- Runs on Windows, macOS, and Linux
+- All processing is local/offline
+
+### Key Dependencies
+
+- `sentence-transformers`
+- `scikit-learn`
+- `pypdf`
+- `keybert`
+- `numpy`, `pandas`, `yaml`
+
+---
+
+## Design Philosophy
+
+PDFSort prioritizes:
+- **Interpretability** over black-box automation
+- **Offline reproducibility**
+- **Minimal assumptions about document structure**
+- **Clear separation between assignment and discovery**
+
+This makes it suitable both as a practical utility and as an applied NLP / ML project.
 
 ---
 
 ## Usage
 
-### Run the Script
-
 ```bash
-python pdf_sort.py
+python sort_papers.py
+```
+## Note
+- Scanned PDFs without extractable text will yield poor embeddings
+- This tool does not perform OCR
+- Topic quality depends on seed descriptions and threshold tuning
