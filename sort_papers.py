@@ -18,21 +18,21 @@ High‑level flow:
 All processing is local/offline — no external services are called.
 """
 
-# ------------------------- STANDARD LIB -------------------------
+#  STANDARD LIB 
 # Built‑ins for filesystem ops, serialization, timing, text utils
 import os, json, math, time, pathlib, shutil, re, unicodedata
 from typing import List, Dict
 
-# --------------------------- NUMPY/PANDAS -----------------------
+# NUMPY/PANDAS
 # Numpy for vector math, Pandas to produce CSV reports
 import numpy as np
 import pandas as pd
 
-# ----------------------------- PDF ------------------------------
+# PDF 
 # pypdf extracts text from PDF pages (no OCR)
 from pypdf import PdfReader
 
-# ---------------------- EMBEDDINGS/MODELS ----------------------
+# EMBEDDINGS/MODELS
 # Sentence‑Transformers for text embeddings (384‑dim for MiniLM)
 from sentence_transformers import SentenceTransformer
 
@@ -51,7 +51,7 @@ import yaml
 # Optional: KeyBERT for keyphrase extraction when naming clusters
 from keybert import KeyBERT
 
-# ========================= CONFIGURATION ========================
+# CONFIGURATION
 # You can tune these knobs to balance speed/quality and assignment behavior.
 EMBED_MODEL_NAME = "all-MiniLM-L6-v2"  # Small, fast, robust SBERT model (384‑d)
 OUTDIR = "out"                           # Where outputs are written
@@ -65,12 +65,12 @@ THRESH_ASSIGN = 0.30   # Confidence threshold to auto‑assign to a topic
 MIN_TOKENS = 400       # Warn when a PDF yields very little text (often scanned)
 MAX_PAGES_PER_DOC = 20 # Number of pages to read per PDF (↑ more context, slower)
 
-# ====================== GLOBAL MODEL OBJECTS ====================
+# GLOBAL MODEL OBJECTS
 # Instantiate models once (global) so we don't re‑load per function call.
 _embedder = SentenceTransformer(EMBED_MODEL_NAME)
 _kw_model = KeyBERT(model=EMBED_MODEL_NAME)
 
-# ========================= HELPER FUNCTIONS =====================
+# HELPER FUNCTIONS
 
 def embed(text: str) -> np.ndarray:
     """Return a normalized embedding vector for the given text.
@@ -118,7 +118,7 @@ def ensure_dir(p: str) -> None:
     pathlib.Path(p).mkdir(parents=True, exist_ok=True)
 
 
-# -------- YAML LOADER (robust to BOM and “smart quotes”) --------
+# YAML LOADER (robust to BOM and “smart quotes”) 
 
 def load_yaml_utf8(path: str) -> dict:
     """Load YAML with UTF‑8 handling and punctuation normalization.
@@ -144,7 +144,7 @@ def load_yaml_utf8(path: str) -> dict:
     return yaml.safe_load(text)
 
 
-# --------------- CLUSTER TITLE SAMPLING / SUMMARIES -------------
+# CLUSTER TITLE SAMPLING / SUMMARIES 
 
 def summarize_cluster_titles(files: List[str], base_dir: str, max_pages: int = 3):
     """Collect quick title/snippet pairs from a handful of files.
@@ -166,7 +166,7 @@ def summarize_cluster_titles(files: List[str], base_dir: str, max_pages: int = 3
     return titles, " \n".join(texts)
 
 
-# ---------------------- AUTO‑NAMING PIPELINE --------------------
+# AUTO‑NAMING PIPELINE
 
 def propose_cluster_name(files: List[str], base_unsorted: str) -> str:
     """Propose a short, human‑readable name for a cluster of PDFs.
@@ -233,7 +233,7 @@ def propose_cluster_name(files: List[str], base_unsorted: str) -> str:
     return name
 
 
-# ---------------- AGGLOMERATIVE (COSINE) WRAPPER ----------------
+# AGGLOMERATIVE (COSINE) WRAPPER
 
 def agglomerative_cosine(X: np.ndarray, n_clusters: int) -> np.ndarray:
     """Run average‑linkage agglomerative clustering with cosine metric.
@@ -249,7 +249,7 @@ def agglomerative_cosine(X: np.ndarray, n_clusters: int) -> np.ndarray:
     return labels
 
 
-# ============================== MAIN ============================
+# MAIN
 
 def main() -> None:
     """Entrypoint: orchestrates sorting, clustering, and reporting."""
@@ -257,7 +257,7 @@ def main() -> None:
     ensure_dir(OUTDIR)
     ensure_dir(os.path.join(OUTDIR, "_unsorted"))
 
-    # ---- Load topics/seeds ----
+    # Load topics/seeds
     seeds = load_yaml_utf8(SEED_FILE)
     topics = seeds["topics"]
     # If a topic is missing a `seed`, fall back to using its `name`
@@ -265,11 +265,11 @@ def main() -> None:
         if not t.get("seed"):
             t["seed"] = t["name"]
 
-    # ---- Embed topic seeds ----
+    # Embed topic seeds
     for t in topics:
         t["vec"] = embed(t["seed"])  # precompute once; reused for all PDFs
 
-    # ---- Iterate PDFs, embed, and score against seeds ----
+    # Iterate PDFs, embed, and score against seeds
     rows = []                 # rows for assignment_report.csv
     pdf_files = sorted([f for f in os.listdir(PDFDIR) if f.lower().endswith(".pdf")])
     if not pdf_files:
@@ -304,11 +304,11 @@ def main() -> None:
             "top3": json.dumps([(n, round(s, 3)) for n, s in sims[:3]])
         })
 
-    # ---- Save the assignment report (preview of decisions) ----
+    # Save the assignment report (preview of decisions)
     df = pd.DataFrame(rows)
     df.to_csv(os.path.join(OUTDIR, "assignment_report.csv"), index=False)
 
-    # ---- Materialize topic folders and copy files by confidence ----
+    # Materialize topic folders and copy files by confidence
     topic_to_dir: Dict[str, str] = {}
     for t in topics:
         d = os.path.join(OUTDIR, t["name"])  # folder name is the topic name
@@ -328,7 +328,7 @@ def main() -> None:
         except Exception as e:
             print(f"[red]Copy fail:[/red] {src} -> {dst}: {e}")
 
-    # ---- Cluster low‑confidence PDFs to suggest subtopics ----
+    # Cluster low‑confidence PDFs to suggest subtopics
     unsorted = [f for f in os.listdir(os.path.join(OUTDIR, "_unsorted")) if f.lower().endswith(".pdf")]
     cluster_map: Dict[int, List[str]] = {}
 
@@ -362,7 +362,7 @@ def main() -> None:
     with open(os.path.join(OUTDIR, "cluster_suggestions.json"), "w") as f:
         json.dump(cluster_map, f, indent=2)
 
-    # ---- Auto‑name clusters and move into _unsorted_named/ ----
+    # Auto‑name clusters and move into _unsorted_named/
     if cluster_map:
         base_unsorted = os.path.join(OUTDIR, "_unsorted")
         named_root = os.path.join(OUTDIR, "_unsorted_named")
@@ -384,6 +384,6 @@ def main() -> None:
     print("[green]Done.[/green] Outputs in 'out/'.")
 
 
-# --------------------------- CLI GUARD --------------------------
+# CLI GUARD
 if __name__ == "__main__":
     main()
